@@ -2,8 +2,7 @@ const express = require('express');
 const { graphqlHTTP } = require('express-graphql');
 const { buildSchema } = require('graphql');
 const _ = require('lodash');
-const fs = require('fs');
-const path = require('path');
+const { getFlag, clearanceLevel } = require('./flag');
 
 const app = express();
 app.use(express.static('public'));
@@ -168,13 +167,9 @@ app.get(VAULT_PATH, (req, res) => {
     "Exposed? You involve me in a matter of which I have no knowledge."
   ];
 
-  if (({}).clearance === "OMEGA_7") {
+  if (({}).clearance === clearanceLevel) {
     try {
-      let flagPath = '/flag.txt';
-      if (!fs.existsSync(flagPath)) {
-        flagPath = path.join(__dirname, 'flag.txt');
-      }
-      const flag = fs.readFileSync(flagPath, 'utf8').trim();
+      const flag = getFlag();
       res.json({ status: "success", flag: flag });
     } catch (err) {
       res.status(500).json({ status: "error", message: "Vault integrity failure." });

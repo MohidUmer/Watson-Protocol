@@ -21,8 +21,5 @@ COPY docker-entrypoint.sh /tmp/docker-entrypoint.sh
 RUN sed -i 's/\r$//' /tmp/docker-entrypoint.sh \
     && chmod +x /tmp/docker-entrypoint.sh
 
-# Flag placement: root / as requested
-RUN touch /flag.txt && chmod 444 /flag.txt
-
 EXPOSE 5000
 ENTRYPOINT ["/tmp/docker-entrypoint.sh"]

@@ -1,191 +1,2107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WATSON_TERMINAL_V2</title>
-    <style>
-        :root {
-            --terminal-green: #00ff41;
-            --terminal-bg: #0a0a0a;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Watson Protocol — A CTF Investigation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=IM+Fell+English:ital@0;1&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ==================== ROOT & RESET ==================== */
+:root {
+  --ink: #1a1208;
+  --parchment: #f5ead6;
+  --parchment-dark: #e8d5b0;
+  --amber: #c8873a;
+  --amber-light: #e8a857;
+  --amber-glow: rgba(200,135,58,0.25);
+  --sepia: #6b4f2a;
+  --fog: #a89070;
+  --red-clue: #8b1a1a;
+  --gold: #c9a227;
+  --terminal-green: #00ff41;
+  --terminal-bg: #050a03;
+  --chalk: #e8e4d9;
+  --chalk-dim: rgba(232,228,217,0.6);
+}
 
-        * {
-            box-sizing: border-box;
-        }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            background-color: var(--terminal-bg);
-            color: var(--terminal-green);
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 15px;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+html { scroll-behavior: smooth; }
 
-        /* CRT/Scanline Effect */
-        body::before {
-            content: " ";
-            display: block;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 100;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
+body {
+  background: var(--ink);
+  color: var(--parchment);
+  font-family: 'IM Fell English', serif;
+  overflow-x: hidden;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='4' fill='%23c8873a' opacity='0.8'/%3E%3C/svg%3E") 10 10, auto;
+}
 
-        @keyframes flicker {
-            0% { opacity: 1.0; }
-            5% { opacity: 0.98; }
-            10% { opacity: 0.95; }
-            15% { opacity: 0.98; }
-            20% { opacity: 1.0; }
-            100% { opacity: 1.0; }
-        }
+/* ==================== NOISE TEXTURE OVERLAY ==================== */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999;
+  opacity: 0.35;
+}
 
-        .terminal-container {
-            border: 1px solid var(--terminal-green);
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            animation: flicker 0.1s infinite;
-            background: rgba(0, 5, 0, 0.5);
-            overflow: hidden;
-            position: relative;
-        }
+/* ==================== CHAPTER SECTIONS ==================== */
+.chapter {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
 
-        .log-container {
-            flex-grow: 1;
-            overflow-y: scroll;
-            margin-bottom: 20px;
-            padding-right: 10px;
-        }
+/* ==================== CHAPTER 0: TITLE CARD ==================== */
+#ch0 {
+  background: radial-gradient(ellipse at 50% 60%, #1e1408 0%, #0d0905 60%, #050302 100%);
+  overflow: hidden;
+}
 
-        /* Custom Themed Scrollbar */
-        .log-container::-webkit-scrollbar {
-            width: 8px;
-        }
-        .log-container::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.3);
-            border-left: 1px solid rgba(0, 255, 65, 0.1);
-        }
-        .log-container::-webkit-scrollbar-thumb {
-            background: var(--terminal-green);
-            box-shadow: 0 0 5px var(--terminal-green);
-        }
+.fog-layer {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 70%, rgba(180,140,80,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 30%, rgba(100,60,20,0.06) 0%, transparent 50%);
+  animation: fogDrift 20s ease-in-out infinite alternate;
+}
+@keyframes fogDrift {
+  0%   { transform: translateX(0) translateY(0); opacity: 0.8; }
+  100% { transform: translateX(30px) translateY(-20px); opacity: 1; }
+}
 
-        .log-entry {
-            margin: 5px 0;
-            opacity: 0.8;
-            word-wrap: break-word;
-        }
+.city-silhouette {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 280px;
+  background: #080503;
+  clip-path: polygon(
+    0% 100%, 0% 65%, 3% 65%, 3% 45%, 5% 45%, 5% 60%, 8% 60%, 8% 35%, 10% 35%,
+    10% 55%, 12% 55%, 12% 30%, 13% 30%, 13% 20%, 14% 20%, 14% 55%, 16% 55%,
+    16% 40%, 18% 40%, 18% 25%, 19% 25%, 19% 10%, 20% 10%, 20% 8%, 21% 8%,
+    21% 40%, 23% 40%, 23% 50%, 25% 50%, 25% 35%, 27% 35%, 27% 45%, 29% 45%,
+    29% 25%, 30% 25%, 30% 15%, 31% 15%, 31% 45%, 34% 45%, 34% 30%, 36% 30%,
+    36% 40%, 38% 40%, 38% 20%, 40% 20%, 40% 35%, 42% 35%, 42% 50%, 44% 50%,
+    44% 30%, 46% 30%, 46% 20%, 47% 20%, 47% 5%, 48% 5%, 48% 20%, 50% 20%,
+    50% 40%, 52% 40%, 52% 25%, 54% 25%, 54% 15%, 55% 15%, 55% 35%, 57% 35%,
+    57% 45%, 60% 45%, 60% 30%, 62% 30%, 62% 42%, 65% 42%, 65% 28%, 67% 28%,
+    67% 38%, 70% 38%, 70% 22%, 72% 22%, 72% 12%, 73% 12%, 73% 38%, 75% 38%,
+    75% 48%, 77% 48%, 77% 35%, 79% 35%, 79% 25%, 81% 25%, 81% 42%, 84% 42%,
+    84% 55%, 86% 55%, 86% 38%, 88% 38%, 88% 50%, 90% 50%, 90% 35%, 92% 35%,
+    92% 48%, 95% 48%, 95% 60%, 97% 60%, 97% 45%, 100% 45%, 100% 100%
+  );
+}
 
-        .log-entry.header {
-            color: #fff;
-            font-weight: bold;
-            border-bottom: 1px solid var(--terminal-green);
-            margin-bottom: 10px;
-        }
+.gas-lamp {
+  position: absolute;
+  width: 3px; height: 80px;
+  background: linear-gradient(to top, #2a1a08, #8b6020);
+}
+.gas-lamp::after {
+  content: '';
+  position: absolute; top: -15px; left: -8px;
+  width: 20px; height: 20px;
+  background: radial-gradient(circle, rgba(255,200,80,0.95) 0%, rgba(255,150,30,0.6) 40%, transparent 70%);
+  border-radius: 50%;
+  animation: lampFlicker 3s ease-in-out infinite;
+  box-shadow: 0 0 25px rgba(255,180,50,0.7), 0 0 60px rgba(255,150,20,0.3);
+}
+@keyframes lampFlicker {
+  0%,100% { opacity: 1; transform: scale(1); }
+  25% { opacity: 0.85; transform: scale(0.95); }
+  50% { opacity: 0.95; transform: scale(1.05); }
+  75% { opacity: 0.88; transform: scale(0.98); }
+}
+#lamp1 { left: 15%; bottom: 220px; }
+#lamp2 { right: 20%; bottom: 200px; }
+#lamp3 { left: 45%; bottom: 230px; }
 
-        .input-area {
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0;
-        }
+.rain-canvas {
+  position: absolute; inset: 0;
+  pointer-events: none; opacity: 0.25;
+}
 
-        .button {
-            background: transparent;
-            color: var(--terminal-green);
-            border: 1px solid var(--terminal-green);
-            padding: 5px 15px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
+.title-block {
+  position: relative; z-index: 10;
+  text-align: center;
+  padding: 0 40px;
+  margin-bottom: 80px;
+}
 
-        .button:hover {
-            background: var(--terminal-green);
-            color: var(--terminal-bg);
-        }
+.chapter-label {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.4em;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeInUp 1s ease 0.5s forwards;
+}
 
-        #result {
-            margin-top: 10px;
-            padding: 10px;
-            border-top: 1px dashed var(--terminal-green);
-            flex-shrink: 0;
-            min-height: 40px;
-        }
+.main-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(3rem, 9vw, 8rem);
+  font-weight: 900;
+  line-height: 0.9;
+  color: var(--parchment);
+  text-shadow: 0 0 80px rgba(200,135,58,0.3), 0 4px 20px rgba(0,0,0,0.8);
+  opacity: 0;
+  animation: fadeInUp 1.2s ease 0.8s forwards;
+}
 
-        /* Styled scrollbar enabled above */
+.main-title em {
+  font-style: italic;
+  color: var(--amber-light);
+  display: block;
+}
 
-    </style>
+.title-rule {
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  margin: 24px auto;
+  opacity: 0;
+  animation: fadeIn 1s ease 1.5s forwards;
+}
+
+.subtitle {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  color: var(--fog);
+  max-width: 500px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
+  opacity: 0;
+  animation: fadeInUp 1s ease 1.8s forwards;
+}
+
+.begin-btn {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  background: transparent;
+  padding: 14px 40px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.3s;
+  opacity: 0;
+  animation: fadeInUp 1s ease 2.2s forwards;
+}
+.begin-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--amber);
+  transform: translateX(-101%);
+  transition: transform 0.3s ease;
+  z-index: -1;
+}
+.begin-btn:hover { color: var(--ink); }
+.begin-btn:hover::before { transform: translateX(0); }
+
+.scroll-hint {
+  position: absolute; bottom: 40px;
+  left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn 1s ease 3s forwards;
+}
+.scroll-hint span {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  color: var(--fog);
+  display: block; margin-bottom: 8px;
+}
+.scroll-arrow {
+  width: 1px; height: 40px;
+  background: linear-gradient(to bottom, var(--amber), transparent);
+  margin: 0 auto;
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+@keyframes scrollPulse {
+  0%,100% { transform: scaleY(1); opacity: 1; }
+  50% { transform: scaleY(0.6); opacity: 0.4; }
+}
+
+/* ==================== CHAPTER 1: THE CASE ==================== */
+#ch1 {
+  background: linear-gradient(160deg, #100c06 0%, #1a1108 50%, #0e0b06 100%);
+  padding: 80px 20px;
+  min-height: auto;
+}
+
+.newspaper-wrap {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+.newspaper {
+  background: var(--parchment);
+  color: var(--ink);
+  padding: 50px 60px;
+  position: relative;
+  box-shadow: 0 0 0 8px var(--parchment-dark), 0 0 0 9px #8b6b3a, 0 30px 80px rgba(0,0,0,0.7);
+  transform: rotate(-0.4deg);
+  opacity: 0;
+  transform-origin: center;
+}
+.newspaper.visible { animation: paperReveal 0.8s ease forwards; }
+@keyframes paperReveal {
+  from { opacity: 0; transform: rotate(-0.4deg) translateY(40px); }
+  to   { opacity: 1; transform: rotate(-0.4deg) translateY(0); }
+}
+
+.newspaper-corner {
+  position: absolute;
+  width: 40px; height: 40px;
+  border-color: #8b6b3a;
+  border-style: solid;
+}
+.newspaper-corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+.newspaper-corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+.newspaper-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+.newspaper-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+.paper-age {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 80% 20%, rgba(180,140,80,0.15), transparent 60%),
+    radial-gradient(ellipse at 20% 80%, rgba(140,100,50,0.12), transparent 50%);
+  pointer-events: none;
+}
+
+.paper-header {
+  text-align: center;
+  border-bottom: 3px double #6b4f2a;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+.paper-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+.paper-date {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.65rem;
+  color: var(--sepia);
+  letter-spacing: 0.2em;
+  margin-top: 4px;
+}
+.paper-rule { height: 1px; background: var(--sepia); margin: 8px 0; }
+
+.paper-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.paper-subhead {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--sepia);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.paper-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  border-top: 1px solid var(--sepia);
+  padding-top: 16px;
+}
+
+.paper-col p {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #2a1a08;
+  margin-bottom: 10px;
+  text-align: justify;
+}
+
+.paper-col .dropcap::first-letter {
+  float: left;
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2rem;
+  font-weight: 900;
+  line-height: 0.75;
+  margin: 4px 6px 0 0;
+  color: var(--ink);
+}
+
+.ink-stamp {
+  position: absolute;
+  bottom: 40px; right: 50px;
+  width: 100px; height: 100px;
+  border: 3px solid var(--red-clue);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(15deg);
+  opacity: 0.7;
+}
+.ink-stamp span {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--red-clue);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ==================== CHAPTER 2: BRIEFING ==================== */
+#ch2 {
+  background: #0d0a06;
+  padding: 100px 20px;
+}
+
+.briefing-wrap {
+  max-width: 700px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.section-number {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  color: var(--amber);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--parchment);
+  margin-bottom: 10px;
+}
+.section-rule {
+  width: 60px; height: 2px;
+  background: var(--amber);
+  margin: 16px auto 0;
+}
+
+.dossier-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(200,135,58,0.2);
+  border-left: 3px solid var(--amber);
+  padding: 30px 35px;
+  margin-bottom: 24px;
+  position: relative;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.dossier-card.visible { opacity: 1; transform: translateX(0); }
+
+.dossier-card::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -10px; left: 20px;
+  background: var(--amber);
+  color: var(--ink);
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  padding: 2px 10px;
+  text-transform: uppercase;
+}
+
+.dossier-card p {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--parchment);
+  opacity: 0.85;
+}
+
+.dossier-card code {
+  font-family: 'Courier Prime', monospace;
+  background: rgba(200,135,58,0.15);
+  color: var(--amber-light);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 0.85em;
+}
+
+/* ==================== CHAPTER 3: THE CHALKBOARD ==================== */
+#ch3 {
+  background: linear-gradient(180deg, #0d0a06 0%, #080603 100%);
+  padding: 80px 20px 100px;
+}
+
+.chalkboard {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  background: #1a2218;
+  border: 12px solid #3d2e1a;
+  border-radius: 4px;
+  box-shadow: 
+    inset 0 2px 20px rgba(0,0,0,0.8),
+    0 0 0 2px #2a1f0e,
+    0 20px 60px rgba(0,0,0,0.6);
+  padding: 50px;
+  position: relative;
+}
+
+.chalk-tray {
+  position: absolute;
+  bottom: -22px; left: 30px; right: 30px;
+  height: 14px;
+  background: #3d2e1a;
+  border-radius: 0 0 4px 4px;
+}
+
+.chalk-title {
+  font-family: 'Courier Prime', monospace;
+  font-size: 1.4rem;
+  color: var(--chalk);
+  text-align: center;
+  margin-bottom: 40px;
+  text-shadow: 0 0 8px rgba(232,228,217,0.3);
+  letter-spacing: 0.15em;
+  position: relative;
+}
+.chalk-title::after {
+  content: '';
+  display: block;
+  width: 80%; height: 1px;
+  margin: 14px auto 0;
+  background: linear-gradient(90deg, transparent, var(--chalk-dim), transparent);
+}
+
+.clue-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.clue-item {
+  position: relative;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.clue-item.visible { opacity: 1; transform: translateY(0); }
+
+.clue-number {
+  font-family: 'Courier Prime', monospace;
+  font-size: 2rem;
+  color: rgba(232,228,217,0.15);
+  position: absolute;
+  top: -8px; left: -5px;
+  line-height: 1;
+}
+
+.clue-content {
+  padding-left: 20px;
+  border-left: 1px solid var(--chalk-dim);
+}
+
+.clue-label {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.clue-text {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.78rem;
+  color: var(--chalk);
+  line-height: 1.6;
+  text-shadow: 0 0 4px rgba(232,228,217,0.2);
+}
+
+.clue-text .highlight {
+  background: rgba(255,200,50,0.12);
+  color: #f0d080;
+  padding: 1px 4px;
+}
+
+.connecting-line {
+  position: absolute;
+  background: rgba(200,135,58,0.4);
+  width: 1px;
+}
+
+.red-string {
+  position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, var(--red-clue), rgba(139,26,26,0.3));
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+/* ==================== CHAPTER 4: THE TERMINAL ==================== */
+#ch4 {
+  background: linear-gradient(180deg, #080603 0%, #030806 100%);
+  padding: 80px 20px;
+}
+
+.terminal-wrap {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.terminal-header-bar {
+  background: #1a1f18;
+  border: 1px solid rgba(0,255,65,0.2);
+  border-bottom: none;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.term-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.term-dot.red   { background: #ff5f57; }
+.term-dot.yellow{ background: #febc2e; }
+.term-dot.green { background: #28c840; }
+.term-title {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.65rem;
+  color: rgba(0,255,65,0.5);
+  letter-spacing: 0.2em;
+  margin-left: 8px;
+}
+
+.terminal {
+  background: var(--terminal-bg);
+  border: 1px solid rgba(0,255,65,0.3);
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 0 40px rgba(0,255,65,0.05), inset 0 0 40px rgba(0,0,0,0.5);
+  min-height: 400px;
+  font-family: 'Courier Prime', monospace;
+}
+
+/* Scanline */
+.terminal::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,255,65,0.015) 2px,
+    rgba(0,255,65,0.015) 4px
+  );
+  pointer-events: none; z-index: 1;
+}
+
+.term-log {
+  font-size: 0.8rem;
+  line-height: 1.8;
+  color: var(--terminal-green);
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+.term-log::-webkit-scrollbar { width: 4px; }
+.term-log::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.4); }
+
+.term-line { display: block; }
+.term-line.dim    { opacity: 0.5; }
+.term-line.warn   { color: #ffcc00; }
+.term-line.error  { color: #ff4444; }
+.term-line.info   { color: #44aaff; }
+.term-line.success{ color: #00ff41; font-weight: 700; }
+.term-line.system { color: var(--amber-light); }
+
+.term-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(0,255,65,0.2);
+  padding-top: 16px;
+}
+.prompt-symbol { color: var(--amber); font-size: 0.8rem; }
+.term-input {
+  background: transparent;
+  border: none;
+  color: var(--terminal-green);
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.8rem;
+  flex: 1;
+  outline: none;
+  caret-color: var(--terminal-green);
+}
+
+.term-buttons {
+  display: flex; gap: 12px;
+  margin-top: 16px; flex-wrap: wrap;
+}
+.term-btn {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  padding: 8px 20px;
+  cursor: pointer;
+  border: 1px solid rgba(0,255,65,0.4);
+  background: transparent;
+  color: var(--terminal-green);
+  text-transform: uppercase;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.term-btn:hover {
+  background: rgba(0,255,65,0.1);
+  border-color: var(--terminal-green);
+  box-shadow: 0 0 10px rgba(0,255,65,0.2);
+}
+.term-btn.amber-btn {
+  border-color: rgba(200,135,58,0.5);
+  color: var(--amber);
+}
+.term-btn.amber-btn:hover {
+  background: rgba(200,135,58,0.1);
+  border-color: var(--amber);
+  box-shadow: 0 0 10px rgba(200,135,58,0.2);
+}
+
+/* ==================== CHALLENGE TRACKER ==================== */
+.challenge-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+.tracker-step {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  position: relative;
+}
+.ts-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(200,135,58,0.3);
+  background: transparent;
+  transition: all 0.4s ease;
+  position: relative;
+}
+.tracker-step[data-done="true"] .ts-dot {
+  background: var(--amber);
+  border-color: var(--amber);
+  box-shadow: 0 0 10px rgba(200,135,58,0.6);
+}
+.tracker-step[data-done="true"] .ts-dot::after {
+  content: '✓';
+  position: absolute; top: -2px; left: 1px;
+  font-size: 8px; color: var(--ink); font-weight: 900;
+}
+.ts-label {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: var(--fog);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.tracker-step[data-done="true"] .ts-label { color: var(--amber-light); }
+.tracker-line {
+  flex: 1; height: 1px; min-width: 20px; max-width: 60px;
+  background: linear-gradient(90deg, rgba(200,135,58,0.2), rgba(200,135,58,0.2));
+  margin-bottom: 20px;
+}
+
+/* ==================== HINT SYSTEM ==================== */
+.hint-system {
+  background: rgba(200,135,58,0.04);
+  border: 1px solid rgba(200,135,58,0.15);
+  padding: 14px 18px;
+  margin-top: 14px;
+}
+.hint-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.hint-count {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.6rem;
+  color: var(--fog);
+  letter-spacing: 0.1em;
+}
+.hint-text {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.75rem;
+  color: var(--amber-light);
+  margin-top: 10px;
+  line-height: 1.6;
+  border-left: 2px solid var(--amber);
+  padding-left: 12px;
+  display: none;
+  animation: fadeInUp 0.4s ease forwards;
+}
+.hint-text.visible { display: block; }
+
+/* wrong-shake animation */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+.shake { animation: shake 0.35s ease; }
+
+/* ==================== CHAPTER 5: THE REVELATION ==================== */
+#ch5 {
+  background: radial-gradient(ellipse at 50% 50%, #0d0a06 0%, #050302 100%);
+  padding: 80px 20px;
+  display: none;
+}
+#ch5.active { display: flex; }
+
+.revelation-wrap {
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.success-banner {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.flag-display {
+  background: linear-gradient(135deg, rgba(200,135,58,0.08) 0%, rgba(200,135,58,0.02) 100%);
+  border: 1px solid var(--amber);
+  padding: 30px 40px;
+  text-align: center;
+  margin: 30px 0;
+  position: relative;
+  overflow: hidden;
+}
+.flag-display::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(200,135,58,0.08), transparent 70%);
+  animation: flagPulse 3s ease-in-out infinite;
+}
+@keyframes flagPulse {
+  0%,100% { opacity: 0.5; }
+  50%     { opacity: 1; }
+}
+
+.flag-label {
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.4em;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.flag-value {
+  font-family: 'Courier Prime', monospace;
+  font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  padding: 12px 20px;
+  border: 1px solid rgba(200,135,58,0.3);
+  letter-spacing: 0.05em;
+  word-break: break-all;
+}
+
+.vuln-section {
+  margin-top: 50px;
+}
+
+.vuln-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(200,135,58,0.15);
+  padding: 35px 40px;
+  margin-bottom: 24px;
+}
+
+.vuln-card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--amber-light);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(200,135,58,0.2);
+  display: flex; align-items: center; gap: 10px;
+}
+
+.vuln-card p {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--parchment);
+  opacity: 0.85;
+  margin-bottom: 12px;
+}
+
+.code-block {
+  background: #010a01;
+  border: 1px solid rgba(0,255,65,0.2);
+  border-left: 3px solid var(--terminal-green);
+  padding: 16px 20px;
+  margin: 16px 0;
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.75rem;
+  color: var(--terminal-green);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-block.bad-code {
+  border-left-color: #ff4444;
+  color: #ff8888;
+}
+.code-block.good-code {
+  border-left-color: var(--terminal-green);
+  color: #88ff88;
+}
+
+.step-list {
+  list-style: none;
+  counter-reset: steps;
+  margin: 16px 0;
+}
+.step-list li {
+  counter-increment: steps;
+  font-family: 'IM Fell English', serif;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--parchment);
+  opacity: 0.85;
+  padding: 8px 0 8px 40px;
+  position: relative;
+  border-bottom: 1px solid rgba(200,135,58,0.08);
+}
+.step-list li::before {
+  content: counter(steps, decimal-leading-zero);
+  position: absolute; left: 0;
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.7rem;
+  color: var(--amber);
+  font-weight: 700;
+  top: 10px;
+}
+.step-list li code {
+  font-family: 'Courier Prime', monospace;
+  background: rgba(200,135,58,0.1);
+  color: var(--amber-light);
+  padding: 1px 5px;
+  font-size: 0.82em;
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeInUp  {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==================== PROGRESS BAR ==================== */
+.progress-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--amber), var(--amber-light));
+  z-index: 9998;
+  transition: width 0.1s;
+  box-shadow: 0 0 10px rgba(200,135,58,0.5);
+}
+
+/* ==================== CHAPTER NAV ==================== */
+.chapter-nav {
+  position: fixed;
+  right: 24px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.nav-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(200,135,58,0.3);
+  border: 1px solid rgba(200,135,58,0.4);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.nav-dot.active {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(200,135,58,0.6);
+}
+
+/* ==================== PARTICLE OVERLAY ==================== */
+#particles { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+/* ==================== MISC ==================== */
+.tag-badge {
+  display: inline-block;
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.tag-badge.critical { color: #ff4444; border-color: #ff4444; }
+.tag-badge.warn { color: #ffcc00; }
+.tag-badge.info { color: #44aaff; }
+
+.clue-discovered {
+  position: fixed;
+  top: 30px; left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: var(--ink);
+  border: 1px solid var(--amber);
+  padding: 12px 30px;
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.75rem;
+  color: var(--amber);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  z-index: 10000;
+  transition: transform 0.4s ease;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.clue-discovered.show { transform: translateX(-50%) translateY(0); }
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 600px) {
+  .newspaper { padding: 30px 24px; }
+  .paper-cols { grid-template-columns: 1fr; }
+  .clue-grid { grid-template-columns: 1fr; }
+  .dossier-card { padding: 24px 20px; }
+  .chalkboard { padding: 30px 24px; }
+  .chapter-nav { display: none; }
+}
+</style>
 </head>
 <body>
-    <div class="terminal-container">
-        <div class="log-entry header">WATSON CORE OS - v2.0.4 - ENCRYPTED SESSION</div>
-        <div class="log-container" id="log">
-            <div class="log-entry">[OK] Memory parity check complete.</div>
-            <div class="log-entry">[OK] Kernel subsystems initialized.</div>
-            <div class="log-entry">[WARN] Experimental feature ClientSideHydration detected in registry.</div>
-            <div class="log-entry">[INFO] Internal Query engine path updated to obscure location.</div>
-            <div class="log-entry">[CRITICAL] UNAUTHORIZED ACCESS DETECTED AT OMEGA SECTOR.</div>
+
+<!-- Progress bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Chapter Navigation -->
+<nav class="chapter-nav" id="chapterNav">
+  <div class="nav-dot active" data-target="ch0" title="Opening"></div>
+  <div class="nav-dot" data-target="ch1" title="The Case"></div>
+  <div class="nav-dot" data-target="ch2" title="Briefing"></div>
+  <div class="nav-dot" data-target="ch3" title="Clues"></div>
+  <div class="nav-dot" data-target="ch4" title="Terminal"></div>
+</nav>
+
+<!-- Clue discovered toast -->
+<div class="clue-discovered" id="clueToast">🔍 Clue Discovered</div>
+
+<!-- Particle canvas -->
+<canvas id="particles"></canvas>
+
+<!-- ============================================================
+     CHAPTER 0: TITLE CARD
+============================================================ -->
+<section class="chapter" id="ch0">
+  <canvas class="rain-canvas" id="rainCanvas"></canvas>
+  <div class="fog-layer"></div>
+  <div class="city-silhouette"></div>
+  <div class="gas-lamp" id="lamp1"></div>
+  <div class="gas-lamp" id="lamp2"></div>
+  <div class="gas-lamp" id="lamp3"></div>
+
+  <div class="title-block">
+    <p class="chapter-label">Security Challenge — Vol. XII</p>
+    <h1 class="main-title">
+      The Watson<em>Protocol</em>
+    </h1>
+    <div class="title-rule"></div>
+    <p class="subtitle">
+      "When you have eliminated the impossible, whatever remains, however improbable, must be the truth."
+      <br><br>— Sherlock Holmes
+    </p>
+    <button class="begin-btn" onclick="document.getElementById('ch1').scrollIntoView({behavior:'smooth'})">
+      Begin Investigation
+    </button>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Scroll to proceed</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CHAPTER 1: THE CASE FILE (NEWSPAPER)
+============================================================ -->
+<section class="chapter" id="ch1" style="min-height:auto; padding: 80px 20px;">
+  <div class="newspaper-wrap">
+    <div class="newspaper reveal-on-scroll" id="newspaper">
+      <div class="paper-age"></div>
+      <div class="newspaper-corner tl"></div>
+      <div class="newspaper-corner tr"></div>
+      <div class="newspaper-corner bl"></div>
+      <div class="newspaper-corner br"></div>
+
+      <div class="paper-header">
+        <div class="paper-name">The Cyber Dispatch</div>
+        <div class="paper-date">London, England &nbsp;·&nbsp; Spring, 2026 &nbsp;·&nbsp; Sector 7 Edition</div>
+        <div class="paper-rule"></div>
+        <div style="font-size:0.6rem; font-family:'Courier Prime',monospace; color:#6b4f2a; letter-spacing:0.3em;">
+          "ALL THE NEWS THE INSPECTOR DARES TO PRINT"
         </div>
-        <div class="input-area">
-            <button class="button" onclick="openVault()">ACCESS VAULT</button>
-            <button class="button" onclick="clearLogs()">CLEAR LOGS</button>
+      </div>
+
+      <div class="paper-headline">
+        Watson Industries Breached;<br>Omega Vault Silent
+      </div>
+      <div class="paper-subhead">
+        Internal sources suggest a <em>prototype flaw</em> may have unlocked the entire facility
+      </div>
+      <div class="paper-rule"></div>
+
+      <div class="paper-cols">
+        <div class="paper-col">
+          <p class="dropcap">The Watson Protocol, a proprietary intelligence system operated by Watson Industries Ltd., has reportedly suffered an unprecedented breach. An intruder — identity unknown — is believed to have circumvented the formidable Omega-7 vault without possessing any official credentials.</p>
+          <p>Sources inside the firm's Sector 7 division have confirmed that the attacker did not force any lock, forge any key, or bribe any guard. The compromise appears to have originated from a deeply obscure flaw in the system's <em>kernel hydration sequence</em> — a routine maintenance protocol trusted implicitly by engineers.</p>
+          <p>"It is a capital mistake to theorize before one has data," remarked one investigator on condition of anonymity. "Yet the data, once assembled, is damning."</p>
         </div>
-        <div id="result">STATUS: WAITING FOR OPERATOR...</div>
+        <div class="paper-col">
+          <p>The system's internal notes, accessible to any who thought to look, hinted at a migration log referencing both <em>Alpha</em> and <em>Theta</em> sector logs. A curious naming convention file buried deep in the archive described an encoding scheme of "hex_base64" — a detail most would overlook.</p>
+          <p>What the attacker understood, and Watson Industries did not: <strong>the prototype's very DNA could be rewritten</strong> by anyone who knew the correct incantation to send through the hydration port. The vault's clearance check, it turns out, was reading from the very object the attacker had poisoned.</p>
+          <p style="font-style:italic; color:#6b4f2a;">Your mission, should you accept it, is to deduce the method, trace the clues, and open the vault yourself.</p>
+        </div>
+      </div>
+
+      <div class="ink-stamp">
+        <span>CLASSIFIED<br>OMEGA SEC.<br>EYES ONLY</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CHAPTER 2: BRIEFING DOSSIER
+============================================================ -->
+<section class="chapter" id="ch2">
+  <div class="briefing-wrap">
+    <div class="section-header reveal-on-scroll">
+      <span class="section-number">Chapter II</span>
+      <h2 class="section-title">The Dossier</h2>
+      <div class="section-rule"></div>
     </div>
 
-    <script>
-        const logContainer = document.getElementById('log');
+    <div class="dossier-card" data-label="Mission Brief" data-delay="0">
+      <p>You have been granted limited access to the Watson Protocol infrastructure. Your objective: obtain the contents of the <code>OMEGA_7</code> vault located at <code>/api/v1/vault/open</code>. The vault responds only to those whose clearance reads <code>OMEGA_7</code> — yet you hold no such credential.</p>
+    </div>
 
-        function addLog(msg, type = 'INFO') {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerText = `[${new Date().toLocaleTimeString()}] [${type}] ${msg}`;
-            logContainer.appendChild(entry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
+    <div class="dossier-card" data-label="Known Endpoints" data-delay="150">
+      <p>Initial reconnaissance has mapped the following entry points into the system. Not all paths lead forward — some are designed to mislead and consume your time. A careful detective knows which trails to follow.</p>
+      <p><code>/v3/internal/notes.txt</code> — A migration log. Requires the <code>X-Watson-Auth</code> header.<br>
+      <code>/v3/internal/archive/naming_convention.json</code> — A naming schema, freely accessible.<br>
+      <code>/v3/internal/api/query</code> — The GraphQL engine. Gated behind an auth header.<br>
+      <code>/api/v1/hydrate</code> — The kernel hydration endpoint. Accepts POST requests.<br>
+      <code>/api/v1/vault/open</code> — Your ultimate objective. A GET request opens the vault — if you qualify.</p>
+    </div>
 
-        async function openVault() {
-            addLog("Attempting omega-key handshake...", "SYSTEM");
-            try {
-                const res = await fetch('/api/v1/vault/open');
-                const data = await res.json();
-                if (data.status === "success") {
-                    addLog("VAULT_SECTOR_7 OPENED.", "SUCCESS");
-                    document.getElementById('result').innerHTML = `<span style="color: #fff; background: var(--terminal-green); padding: 5px;">${data.flag}</span>`;
-                } else {
-                    addLog(`ACCESS DENIED: ${data.message}`, "SEC_ERROR");
-                    document.getElementById('result').innerText = `STATUS: ${data.message}`;
-                }
-            } catch (err) {
-                addLog("CONNECTION INTERRUPTED.", "KERNEL_PANIC");
-            }
-        }
+    <div class="dossier-card" data-label="Field Intelligence" data-delay="300">
+      <p>The GraphQL engine, when queried at <code>alpha_sector_logs</code>, returns a curious string in its logs field. This string, once decoded, yields a base64 payload. Inside that payload hides a key — a key that names the very vulnerability you must exploit.</p>
+      <p>The hydration endpoint at <code>/api/v1/hydrate</code> accepts a JSON body. It attempts to sanitize certain dangerous keys — but its sanitization is imperfect. The <em>real</em> mutation happens through a different mechanism that bypasses the scrubbing entirely.</p>
+    </div>
 
-        function clearLogs() {
-            logContainer.innerHTML = '<div class="log-entry header">SESSION LOGS CLEARED</div>';
-        }
+    <div class="dossier-card" data-label="Your Objective" data-delay="450">
+      <p>The vault is at <code>/api/v1/vault/open</code>. It makes a very specific check on a very specific kind of JavaScript object before it will yield its contents. Study the vault's source behaviour from its responses. Study the hydration endpoint. The answer lies in a fundamental property of how JavaScript objects are constructed.</p>
+    </div>
+  </div>
+</section>
 
-        // Simulate real-time monitoring
-        setInterval(() => {
-            const monitors = ["Pinging relay nodes...", "Syncing prototype state...", "Watching for intruders...", "Maintenance query executed."];
-            addLog(monitors[Math.floor(Math.random() * monitors.length)]);
-        }, 8000);
+<!-- ============================================================
+     CHAPTER 3: THE CHALKBOARD
+============================================================ -->
+<section class="chapter" id="ch3">
+  <div style="max-width:900px; width:100%; margin: 0 auto 40px; text-align:center;" class="reveal-on-scroll">
+    <span class="section-number">Chapter III</span>
+    <h2 class="section-title">Baker Street — The Evidence Board</h2>
+    <div class="section-rule"></div>
+  </div>
 
-        // Auto-hydration removed as requested. User must manually send POST to /api/v1/hydrate.
-        addLog("Manual hydration required for prototype synchronization.", "BOOT");
-    </script>
+  <div class="chalkboard reveal-on-scroll" id="chalkboard">
+    <div class="chalk-title">∷ CLUES & DEDUCTIONS ∷</div>
+    <div class="clue-grid">
+      <div class="clue-item" data-clue="1" data-msg="Clue 1: The Migration Log Speaks">
+        <div class="clue-number">01</div>
+        <div class="clue-content">
+          <div class="clue-label">The Migration Log</div>
+          <div class="clue-text">
+            GET <span class="highlight">/v3/internal/notes.txt</span><br>
+            Header: <span class="highlight">X-Watson-Auth: WATSON_PRIME_2026</span><br><br>
+            Notes reference "ClientSideHydration" and a field called <span class="highlight">PROTOTYPE_SYNC_ENABLET</span> — a name that should ring alarm bells.
+          </div>
+        </div>
+      </div>
+
+      <div class="clue-item" data-clue="2" data-msg="Clue 2: The Naming Convention">
+        <div class="clue-number">02</div>
+        <div class="clue-content">
+          <div class="clue-label">The Archive JSON</div>
+          <div class="clue-text">
+            GET <span class="highlight">/v3/internal/archive/naming_convention.json</span><br><br>
+            Encoding scheme: <span class="highlight">hex_base64</span><br>
+            Storage format: <span class="highlight">reverse_stream_v2</span><br><br>
+            The GraphQL logs field returns a <em>reversed hex</em> of a base64 string.
+          </div>
+        </div>
+      </div>
+
+      <div class="clue-item" data-clue="3" data-msg="Clue 3: A Signal Hidden in the GraphQL Logs">
+        <div class="clue-number">03</div>
+        <div class="clue-content">
+          <div class="clue-label">The GraphQL Engine</div>
+          <div class="clue-text">
+            The internal query engine lives at <span class="highlight">/v3/internal/api/query</span>.<br>
+            It requires the same auth header as the notes.<br><br>
+            Query the <span class="highlight">alpha</span> sector — not theta. Something in the <span class="highlight">maintenance.logs</span> field is not what it appears to be.<br><br>
+            The archive told you how to read it.
+          </div>
+        </div>
+      </div>
+
+      <div class="clue-item" data-clue="4" data-msg="Clue 4: The Vault's Secret Weakness">
+        <div class="clue-number">04</div>
+        <div class="clue-content">
+          <div class="clue-label">The Fatal Check</div>
+          <div class="clue-text">
+            The vault endpoint checks a property on an empty object.<br>
+            Empty objects in JavaScript inherit from something.<br><br>
+            The hydration endpoint at <span class="highlight">/api/v1/hydrate</span> accepts any JSON.<br>
+            Its sanitiser is imperfect — there is a bypass.<br><br>
+            What would you need to inject, and where?
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chalk-tray"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CHAPTER 4: THE TERMINAL (REAL CHALLENGE)
+============================================================ -->
+<section class="chapter" id="ch4" style="padding: 60px 20px 80px;">
+  <div class="terminal-wrap" style="max-width:960px;">
+
+    <div style="text-align:center; margin-bottom:40px;" class="reveal-on-scroll">
+      <span class="section-number">Chapter IV</span>
+      <h2 class="section-title">The Investigation</h2>
+      <div class="section-rule"></div>
+      <p style="font-family:'IM Fell English',serif; font-style:italic; color:var(--fog); margin-top:16px; font-size:0.95rem; max-width:560px; margin-inline:auto;">
+        The terminal is live. No buttons. No guidance. You must discover the path yourself — type real commands and craft the correct attack. Type <code style="color:var(--amber);font-family:'Courier Prime',monospace;">help</code> to begin.
+      </p>
+    </div>
+
+    <!-- Progress tracker -->
+    <div class="challenge-tracker reveal-on-scroll" id="tracker">
+      <div class="tracker-step" id="ts1" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">Recon</div>
+      </div>
+      <div class="tracker-line"></div>
+      <div class="tracker-step" id="ts2" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">Archive</div>
+      </div>
+      <div class="tracker-line"></div>
+      <div class="tracker-step" id="ts3" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">GraphQL</div>
+      </div>
+      <div class="tracker-line"></div>
+      <div class="tracker-step" id="ts4" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">Decoded</div>
+      </div>
+      <div class="tracker-line"></div>
+      <div class="tracker-step" id="ts5" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">Poisoned</div>
+      </div>
+      <div class="tracker-line"></div>
+      <div class="tracker-step" id="ts6" data-done="false">
+        <div class="ts-dot"></div>
+        <div class="ts-label">Vault Open</div>
+      </div>
+    </div>
+
+    <!-- Main terminal -->
+    <div class="terminal-header-bar">
+      <div class="term-dot red"></div>
+      <div class="term-dot yellow"></div>
+      <div class="term-dot green"></div>
+      <span class="term-title">WATSON_CORE_OS — v2.0.4 — ENCRYPTED SESSION // type help</span>
+    </div>
+    <div class="terminal" id="terminal" style="min-height:460px;">
+      <div class="term-log" id="termLog">
+        <span class="term-line dim">[BOOT] Memory parity check ............ OK</span>
+        <span class="term-line dim">[BOOT] Kernel subsystems .............. ONLINE</span>
+        <span class="term-line warn">[WARN] ClientSideHydration detected in registry.</span>
+        <span class="term-line error">[CRIT] UNAUTHORIZED ACCESS — OMEGA SECTOR — ALERT ACTIVE</span>
+        <span class="term-line system">[SYS ] Session established. Watson Protocol v2.0.4.</span>
+        <span class="term-line dim">──────────────────────────────────────────────────────</span>
+      </div>
+      <div class="term-prompt">
+        <span class="prompt-symbol" id="promptSymbol">watson@omega:~$</span>
+        <input class="term-input" id="termInput" type="text" placeholder="type a command..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- Hint panel — locked by default -->
+    <div class="hint-system" id="hintSystem">
+      <div class="hint-header">
+        <span style="font-family:'Courier Prime',monospace; font-size:0.65rem; letter-spacing:0.3em; color:var(--amber); text-transform:uppercase;">🕵 Holmes's Notebook</span>
+        <span class="hint-count" id="hintCount">3 hints remaining</span>
+      </div>
+      <button class="term-btn" id="hintBtn" onclick="useHint()" style="width:100%; margin-top:8px; font-size:0.7rem;">
+        Request a Hint (costs 1)
+      </button>
+      <div class="hint-text" id="hintText"></div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center;">
+      <button class="term-btn" style="border-color:rgba(255,68,68,0.3);color:rgba(255,100,100,0.7); font-size:0.65rem;" onclick="clearTerm()">✕ Clear</button>
+      <span style="font-family:'Courier Prime',monospace; font-size:0.6rem; color:var(--fog); margin-left:auto;">
+        Supported syntax: <code style="color:var(--amber-light);">curl</code>, <code style="color:var(--amber-light);">GET</code>, <code style="color:var(--amber-light);">POST</code>, <code style="color:var(--amber-light);">decode</code>, <code style="color:var(--amber-light);">help</code>
+      </span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     CHAPTER 5: THE REVELATION (SUCCESS)
+============================================================ -->
+<section class="chapter" id="ch5">
+  <div class="revelation-wrap">
+    <div class="success-banner">
+      <span class="section-number" style="font-size:0.8rem;">— Case Closed —</span>
+      <h2 class="section-title" style="font-size:clamp(2rem,5vw,3.5rem); color:var(--amber-light);">
+        The Vault is Open
+      </h2>
+      <div class="section-rule"></div>
+      <p style="font-family:'IM Fell English',serif; font-style:italic; color:var(--fog); margin-top:20px; font-size:1rem; max-width:500px; margin-inline:auto;">
+        "Elementary, my dear Watson. The prototype was never truly guarded — only obscured."
+      </p>
+    </div>
+
+    <div class="flag-display">
+      <div class="flag-label">🏴 Captured Flag</div>
+      <div class="flag-value" id="flagValue">LOCKED_UNTIL_VAULT_OPEN</div>
+    </div>
+
+    <div class="vuln-section">
+      <div style="text-align:center; margin-bottom:40px;">
+        <span class="section-number">Debrief</span>
+        <h3 class="section-title" style="font-size:1.8rem;">Vulnerability Explained</h3>
+        <div class="section-rule"></div>
+      </div>
+
+      <div class="vuln-card">
+        <div class="vuln-card-title">
+          <span class="tag-badge critical">Critical</span>
+          Prototype Pollution (CVE Class: PP)
+        </div>
+        <p>Prototype Pollution is a JavaScript-specific vulnerability where an attacker can inject properties into the global <code>Object.prototype</code>. Since every JavaScript object inherits from <code>Object.prototype</code>, any property added to the prototype becomes accessible on all objects — including freshly created empty ones.</p>
+        <p>In the Watson Protocol, the vault's access check was:</p>
+        <div class="code-block bad-code">// The fatal check — reads inherited property, not own property
+if (({}).clearance === "OMEGA_7") {
+  // grant access
+}</div>
+        <p>An empty object literal <code>{}</code> has no own <code>clearance</code> property. But if someone had previously poisoned <code>Object.prototype.clearance = "OMEGA_7"</code>, every object in the process inherits it — and the check passes.</p>
+      </div>
+
+      <div class="vuln-card">
+        <div class="vuln-card-title">
+          <span class="tag-badge warn">Attack Path</span>
+          Step-by-Step Reconstruction
+        </div>
+        <ol class="step-list">
+          <li>Read <code>/v3/internal/notes.txt</code> with the Watson auth header. The migration log mentions "ClientSideHydration" and a debug key <code>PROTOTYPE_SYNC_ENABLET</code> — hinting at the vulnerability class.</li>
+          <li>Read <code>/v3/internal/archive/naming_convention.json</code>. It reveals the encoding scheme: <code>hex_base64</code> with a <code>reverse_stream_v2</code> format.</li>
+          <li>Query the GraphQL endpoint with the auth header. The <code>alpha_sector_logs</code> response returns a reversed hex string in its <code>logs</code> field.</li>
+          <li>Decode the signal: reverse the hex string → decode from hex → base64-decode the result → parse as JSON. The JSON reveals <code>{"__proto__": ...}</code> — confirmation of the attack vector.</li>
+          <li>POST a crafted payload to <code>/api/v1/hydrate</code>: <code>{"__proto__": {"clearance": "OMEGA_7"}}</code>. Despite the naïve filter that replaces <code>"__proto__"</code>, the endpoint calls <code>_.merge(Object.prototype, data)</code> directly — bypassing its own sanitization and polluting the prototype.</li>
+          <li>GET <code>/api/v1/vault/open</code>. The check <code>({}).clearance === "OMEGA_7"</code> now evaluates to <code>true</code>. The vault opens. The flag is captured.</li>
+        </ol>
+      </div>
+
+      <div class="vuln-card">
+        <div class="vuln-card-title">
+          <span class="tag-badge info">Defence</span>
+          How to Fix It — Securing the Code
+        </div>
+        <p>There are multiple layers where this vulnerability could have been prevented:</p>
+        <p><strong>1. Never pass untrusted data to prototype-mutating functions:</strong></p>
+        <div class="code-block bad-code">// VULNERABLE: merges directly into Object.prototype
+_.merge(Object.prototype, data);</div>
+        <div class="code-block good-code">// SAFE: merge into a plain container object, never into prototypes
+const safeContainer = {};
+_.merge(safeContainer, data);
+res.json({ status: "success", data: safeContainer });</div>
+
+        <p><strong>2. Use Object.create(null) for objects that should have no prototype:</strong></p>
+        <div class="code-block good-code">// No prototype chain — immune to pollution
+const safeObj = Object.create(null);
+// ({}).clearance will still be undefined even after pollution</div>
+
+        <p><strong>3. Use hasOwnProperty for security-critical checks:</strong></p>
+        <div class="code-block bad-code">// VULNERABLE: reads inherited properties
+if (({}).clearance === "OMEGA_7") { ... }</div>
+        <div class="code-block good-code">// SAFE: only reads own properties
+const ctx = {};
+if (Object.prototype.hasOwnProperty.call(ctx, 'clearance') && ctx.clearance === "OMEGA_7") { ... }
+// Or better yet: use explicit credential parameters, not object property checks</div>
+
+        <p><strong>4. Freeze Object.prototype in production:</strong></p>
+        <div class="code-block good-code">// Called once at application startup
+Object.freeze(Object.prototype);
+// Now no code — including libraries — can mutate the prototype</div>
+
+        <p><strong>5. Validate and sanitize all JSON input deeply:</strong></p>
+        <div class="code-block good-code">function sanitize(obj) {
+  const DANGEROUS = ['__proto__', 'constructor', 'prototype'];
+  if (typeof obj !== 'object' || !obj) return obj;
+  for (const key of DANGEROUS) delete obj[key];
+  for (const val of Object.values(obj)) sanitize(val);
+  return obj;
+}
+const data = sanitize(JSON.parse(req.body));</div>
+
+        <p style="margin-top:16px; font-style:italic; opacity:0.7;">Implement all five layers — defence in depth ensures that even if one layer fails, the others hold. The Watson Protocol's mistake was trusting a partially-sanitized payload and then immediately passing raw data to a prototype-mutating function.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+// ==================== RAIN ANIMATION ====================
+(function() {
+  const canvas = document.getElementById('rainCanvas');
+  const ctx = canvas.getContext('2d');
+  let drops = [];
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 120; i++) {
+    drops.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, speed: 1+Math.random()*2, len: 8+Math.random()*15, opacity: 0.1+Math.random()*0.3 });
+  }
+  function drawRain() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drops.forEach(d => {
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - d.len*0.3, d.y + d.len);
+      ctx.strokeStyle = `rgba(180,150,100,${d.opacity})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      d.y += d.speed;
+      if (d.y > canvas.height) { d.y = -20; d.x = Math.random()*canvas.width; }
+    });
+    requestAnimationFrame(drawRain);
+  }
+  drawRain();
+})();
+
+// ==================== SCROLL PROGRESS ====================
+window.addEventListener('scroll', () => {
+  const scrolled = window.scrollY;
+  const max = document.body.scrollHeight - window.innerHeight;
+  document.getElementById('progressBar').style.width = (scrolled/max*100) + '%';
+  updateNavDots();
+});
+
+function updateNavDots() {
+  const chapters = ['ch0','ch1','ch2','ch3','ch4'];
+  const dots = document.querySelectorAll('.nav-dot');
+  let active = 0;
+  chapters.forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el && window.scrollY >= el.offsetTop - window.innerHeight/2) active = i;
+  });
+  dots.forEach((d,i) => d.classList.toggle('active', i === active));
+}
+
+document.querySelectorAll('.nav-dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.getElementById(dot.dataset.target).scrollIntoView({behavior:'smooth'});
+  });
+});
+
+// ==================== INTERSECTION OBSERVER ====================
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.reveal-on-scroll').forEach(el => revealObs.observe(el));
+
+// Dossier cards
+const cardObs = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const delay = parseInt(entry.target.dataset.delay || 0);
+      setTimeout(() => entry.target.classList.add('visible'), delay);
+    }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll('.dossier-card').forEach(el => cardObs.observe(el));
+
+// Clue items
+const clueObs = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const idx = parseInt(entry.target.dataset.clue);
+      setTimeout(() => {
+        entry.target.classList.add('visible');
+        showClueToast(entry.target.dataset.msg);
+      }, (idx-1) * 200);
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.clue-item').forEach(el => clueObs.observe(el));
+
+// ==================== CLUE TOAST ====================
+let toastTimer;
+function showClueToast(msg) {
+  const toast = document.getElementById('clueToast');
+  toast.textContent = '🔍 ' + msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+// ==================== REAL INTERACTIVE TERMINAL ENGINE ====================
+const log = document.getElementById('termLog');
+
+// ---- State machine ----
+const STATE = {
+  notesRead: false,       // visited /v3/internal/notes.txt with correct header
+  archiveRead: false,     // visited naming_convention.json
+  graphqlQueried: false,  // ran correct gql query
+  signalDecoded: false,   // ran decode command with correct raw hex
+  hydrated: false,        // POSTed correct proto pollution payload
+  vaultOpen: false,
+};
+
+// The real encoded signal (from app.js)
+const REAL_HEX_REVERSED = '4e546b5645555a4e546b5645555a4e546b56455a4e546b564556555a4e546b5645555a4e546b5645555a4e546b5645555a4e546b564543555a4e546b56455a5555455a4e546b56455a5555455a4e546b5645555a4e546b5645555a4e546b5645555a4e546b564556455a4e546b564556455a4e546b5645555a4e546b5645555a4e546b5645555a4e546b5645555a4e546b564556455a4e546b564543555a4e546b5645555a4e546b5645555a4e546b5645555a4e546b564543555a4e546b5645555a4e546b564556455a4e546b564556455a';
+// Simplified representative signal players decode
+const SIGNAL_HEX_REVERSED = '3d516d466a6447566a593278705932397564574a6862476c3059584e6f4d43346a6447566a6131396b5a574e765a484b576551314853513d3d';
+
+// Hints pool (3 available)
+const HINTS = [
+  'The notes endpoint at /v3/internal/notes.txt requires a specific auth header mentioned in the system logs. Look at what the boot messages revealed.',
+  'The GraphQL endpoint is at /v3/internal/api/query. Send a POST with Content-Type: application/json. Query the alpha_sector_logs field — it returns maintenance.logs. You need the same auth header as the notes endpoint.',
+  'The hydration payload must use the key "__proto__" with a nested object {"clearance": "OMEGA_7"}. The sanitizer is blind to lodash — your payload passes through. Correct syntax: POST /api/v1/hydrate with body {"__proto__":{"clearance":"OMEGA_7"}}',
+];
+let hintsLeft = 3;
+let hintIndex = 0;
+
+// ---- Rendering ----
+let busy = false;
+
+function addLine(text, cls = '', delayMs = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const span = document.createElement('span');
+      span.className = 'term-line ' + cls;
+      span.innerHTML = text;
+      log.appendChild(span);
+      log.scrollTop = log.scrollHeight;
+      resolve();
+    }, delayMs);
+  });
+}
+
+async function printLines(lines) {
+  busy = true;
+  for (let i = 0; i < lines.length; i++) {
+    await addLine(lines[i][0], lines[i][1] || '', lines[i][2] !== undefined ? lines[i][2] : i * 90);
+  }
+  busy = false;
+}
+
+function echoCmd(cmd) {
+  addLine('watson@omega:~$ ' + cmd, 'system');
+}
+
+function wrongInput(msg) {
+  const input = document.getElementById('termInput');
+  input.classList.add('shake');
+  setTimeout(() => input.classList.remove('shake'), 400);
+  addLine('✗ ' + msg, 'error');
+}
+
+function markDone(stepId) {
+  const el = document.getElementById(stepId);
+  if (el) el.setAttribute('data-done', 'true');
+}
+
+// ---- Command parser ----
+async function parseCommand(raw) {
+  const cmd = raw.trim();
+  const lower = cmd.toLowerCase();
+
+  // HELP
+  if (lower === 'help' || lower === '?') {
+    printLines([
+      ['', 'dim'],
+      ['┌─ Watson Protocol — Command Reference ─────────────────────┐', 'system'],
+      ['│  GET  &lt;path&gt;                        — fetch a resource      │', 'dim'],
+      ['│  GET  &lt;path&gt; -H "Header: Value"      — fetch with header     │', 'dim'],
+      ['│  POST &lt;path&gt; -d \'{"key":"val"}\'     — send JSON body        │', 'dim'],
+      ['│  decode &lt;hex_string&gt;               — reverse+hex+b64 decode │', 'dim'],
+      ['│  help                               — show this reference   │', 'dim'],
+      ['│  clear                              — clear terminal        │', 'dim'],
+      ['└────────────────────────────────────────────────────────────┘', 'system'],
+      ['', 'dim'],
+      ['You know the vault is at /api/v1/vault/open.', 'info'],
+      ['You know something called ClientSideHydration is running.', 'info'],
+      ['The rest, detective, is yours to find.', 'warn'],
+    ]);
+    return;
+  }
+
+  // CLEAR
+  if (lower === 'clear' || lower === 'cls') {
+    log.innerHTML = '<span class="term-line dim">[SYS] Session cleared.</span>';
+    return;
+  }
+
+  // ─── GET requests ───
+  const getMatch = cmd.match(/^(?:curl\s+)?(?:GET\s+)?(\S+)(.*)?$/i);
+
+  // Notes endpoint — requires correct auth header
+  if (lower.includes('/v3/internal/notes.txt') || lower.includes('notes.txt')) {
+    echoCmd(cmd);
+    const hasAuth = lower.includes('x-watson-auth') && lower.includes('watson_prime_2026');
+    if (!hasAuth) {
+      printLines([
+        ['HTTP/1.1 401 UNAUTHORIZED', 'error', 100],
+        ['{"error":"UNAUTHORIZED_ACCESS","message":"Required X-Watson-Auth header missing or invalid."}', 'error', 250],
+        ['', 'dim', 400],
+        ['↳ The server refused. You need a specific auth header.', 'warn', 500],
+      ]);
+    } else {
+      STATE.notesRead = true;
+      markDone('ts1');
+      showClueToast('Recon complete — check the archive next!');
+      printLines([
+        ['HTTP/1.1 200 OK', 'success', 100],
+        ['', 'dim', 150],
+        ['**SYSTEM MIGRATION LOG - OMEGA SECTOR**', '', 200],
+        ['* [DONE] Ported legacy coordinates to GraphQL.', 'dim', 320],
+        ['* [DONE] Disabled introspection on primary engine.', 'dim', 440],
+        ['* [NOTE] Developers: Field definitions and naming conventions are stored', 'warn', 560],
+        ['         in the hidden /v3/internal/archive/ directory.', 'warn', 680],
+        ['* [WARN] Unauthorized access to the archive will be logged.', 'warn', 800],
+        ['* [AUTH] Required header: X-Watson-Auth: WATSON_PRIME_2026', 'info', 920],
+      ]);
+    }
+    return;
+  }
+
+  // Archive index
+  if (lower.includes('/v3/internal/archive/') && !lower.includes('naming_convention') && !lower.includes('.txt') && !lower.includes('.pdf') && !lower.includes('.zip')) {
+    echoCmd(cmd);
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 100],
+      ['&lt;h1&gt;Index of /v3/internal/archive/&lt;/h1&gt;', '', 200],
+      ['naming_convention.json     2026-03-27  245B', 'dim', 320],
+      ['legal_disclaimer.txt       2024-01-01  1240B', 'dim', 440],
+      ['meeting_notes_2024.pdf     2024-05-12  45210B', 'dim', 560],
+      ['old_logo_backup.zip        2023-11-20  8942B', 'dim', 680],
+    ]);
+    return;
+  }
+
+  // Naming convention JSON
+  if (lower.includes('naming_convention')) {
+    echoCmd(cmd);
+    STATE.archiveRead = true;
+    markDone('ts2');
+    showClueToast('Encoding scheme identified — hex_base64 + reverse!');
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 100],
+      ['{', '', 180],
+      ['  "project": "Watson-Omega",', '', 260],
+      ['  "naming_standard": {', '', 340],
+      ['    "geo_data": "prefix_sector_logs",', '', 420],
+      ['    "prefix_current": "alpha",', '', 500],
+      ['    "prefix_legacy": "theta"', '', 580],
+      ['  },', '', 640],
+      ['  "deployment_zone": "Sector-7",', '', 720],
+      ['  "storage_format": "reverse_stream_v2",', 'warn', 800],
+      ['  "encoding": "hex_base64"', 'warn', 880],
+      ['}', '', 960],
+      ['', 'dim', 1020],
+      ['↳ reverse_stream_v2 + hex_base64 — note this encoding scheme carefully.', 'info', 1100],
+    ]);
+    return;
+  }
+
+  // Decoy archive files
+  if (lower.includes('/v3/internal/archive/legal') || lower.includes('/v3/internal/archive/meeting') || lower.includes('/v3/internal/archive/old_logo')) {
+    echoCmd(cmd);
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 100],
+      ['[File contents: no operative intelligence found. Red herring.]', 'dim', 250],
+    ]);
+    return;
+  }
+
+  // v3 internal decoys
+  if (lower.includes('/v3/internal/db') || lower.includes('/v3/internal/auth') || lower.includes('/v3/internal/config') || lower.includes('/v3/internal/api/debug')) {
+    echoCmd(cmd);
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 80],
+      ['[System diagnostic endpoint — no operative data. Keep looking.]', 'dim', 200],
+    ]);
+    return;
+  }
+
+  // v3 access denied decoys
+  if ((lower.includes('/v3') && !lower.includes('/v3/internal/notes') && !lower.includes('/v3/internal/archive') && !lower.includes('/v3/internal/api/query')) ) {
+    echoCmd(cmd);
+    printLines([
+      ['HTTP/1.1 403 FORBIDDEN', 'error', 100],
+      ['{"error":"Access Denied: Sector 3 restricted."}', 'error', 220],
+    ]);
+    return;
+  }
+
+  // /dev or /test-env or /staging — decoys
+  if (lower.includes('/dev') || lower.includes('/test-env') || lower.includes('/staging')) {
+    echoCmd(cmd);
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 80],
+      ['[Decoy endpoint. Nothing of value here.]', 'dim', 200],
+    ]);
+    return;
+  }
+
+  // ─── GraphQL ───
+  if (lower.includes('/v3/internal/api/query')) {
+    echoCmd(cmd);
+    const isPost = lower.includes('-x post') || lower.includes('post ') || lower.includes('method":"post') || lower.includes('post\t');
+    const hasAuth = lower.includes('x-watson-auth') && lower.includes('watson_prime_2026');
+    const hasQuery = lower.includes('alpha_sector_logs') || lower.includes('maintenance') || lower.includes('{');
+
+    if (!hasAuth) {
+      printLines([
+        ['HTTP/1.1 401 UNAUTHORIZED', 'error', 100],
+        ['{"error":"UNAUTHORIZED_ACCESS","message":"X-Watson-Auth header missing or invalid."}', 'error', 220],
+      ]);
+      return;
+    }
+    if (!hasQuery) {
+      printLines([
+        ['HTTP/1.1 400 BAD REQUEST', 'error', 100],
+        ['{"errors":[{"message":"Must provide query string."}]}', 'error', 220],
+      ]);
+      return;
+    }
+    // Wrong query — theta
+    if (lower.includes('theta_sector_logs')) {
+      printLines([
+        ['HTTP/1.1 200 OK', 'success', 100],
+        ['{"errors":[{"message":"DATA_PURGED: theta_sector_logs is deprecated.', 'warn', 220],
+        [' Movement to Alpha sector is required for synchronization."}]}', 'warn', 260],
+        ['↳ Wrong field. Try alpha_sector_logs instead.', 'info', 400],
+      ]);
+      return;
+    }
+    // Correct!
+    STATE.graphqlQueried = true;
+    markDone('ts3');
+    showClueToast('Signal intercepted — now decode it!');
+    const raw = '4e546b5645555a4e546b564555...';
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 100],
+      ['{', '', 200],
+      ['  "data": {', '', 280],
+      ['    "alpha_sector_logs": {', '', 360],
+      ['      "maintenance": {', '', 440],
+      ['        "status": "DEGRADED",', '', 520],
+      ['        "logs": "' + SIGNAL_HEX_REVERSED + '"', 'warn', 620],
+      ['      }', '', 700],
+      ['    }', '', 760],
+      ['  }', '', 820],
+      ['}', '', 880],
+      ['', 'dim', 940],
+      ['↳ Curious. That logs field is not plaintext. Recall the encoding scheme from the archive.', 'info', 1040],
+    ]);
+    return;
+  }
+
+  // ─── DECODE command ───
+  if (lower.startsWith('decode')) {
+    echoCmd(cmd);
+    const parts = cmd.split(/\s+/);
+    const arg = parts.slice(1).join('').replace(/['"]/g, '').trim();
+
+    if (!arg) {
+      printLines([
+        ['Usage: decode &lt;hex_string&gt;', 'warn', 80],
+        ['Pass the raw logs value from the GraphQL response.', 'dim', 160],
+      ]);
+      return;
+    }
+
+    if (!STATE.graphqlQueried) {
+      printLines([
+        ['✗ No signal to decode yet. Query the GraphQL endpoint first.', 'error', 80],
+      ]);
+      return;
+    }
+
+    // Accept if they pass anything resembling the signal (we're lenient — they have to have at least tried)
+    const looksLikeHex = /^[0-9a-f]{20,}/i.test(arg);
+    if (!looksLikeHex) {
+      printLines([
+        ['✗ That does not look like a hex string. Copy the logs value from the GraphQL response.', 'error', 80],
+      ]);
+      return;
+    }
+
+    STATE.signalDecoded = true;
+    markDone('ts4');
+    showClueToast('Signal decoded — __proto__ attack vector identified!');
+    printLines([
+      ['[DECODE] Applying reverse_stream_v2...', 'dim', 100],
+      ['[DECODE] Reversing hex string... done', 'dim', 280],
+      ['[DECODE] Hex → bytes... done', 'dim', 460],
+      ['[DECODE] Base64 decode... done', 'dim', 640],
+      ['[DECODE] Parsing JSON...', 'dim', 820],
+      ['', 'dim', 900],
+      ['{', '', 980],
+      ['  "experimental_feature": "ClientSideHydration",', 'warn', 1060],
+      ['  "debug_key": "PROTOTYPE_SYNC_ENABLET"', 'warn', 1140],
+      ['}', '', 1220],
+      ['', 'dim', 1280],
+      ['↳ PROTOTYPE_SYNC — this is the attack surface. Think about JavaScript prototype chains.', 'info', 1380],
+      ['↳ The hydration endpoint accepts arbitrary JSON. What key would pollute Object.prototype?', 'info', 1500],
+    ]);
+    return;
+  }
+
+  // ─── POST /api/v1/hydrate ───
+  if (lower.includes('/api/v1/hydrate') || lower.includes('hydrate')) {
+    echoCmd(cmd);
+
+    // Must be POST
+    const isPost = lower.includes('-x post') || lower.includes('post ') || lower.match(/^post\s/);
+    const hasBody = lower.includes('-d') || lower.includes('--data') || lower.includes('{');
+    const bodyMatch = cmd.match(/-d\s*['"]?(.*?)['"]?(?:\s+-|$)/s) || cmd.match(/({.*})/s);
+    const bodyStr = bodyMatch ? bodyMatch[1] : '';
+
+    if (!isPost && !hasBody) {
+      printLines([
+        ['HTTP/1.1 405 METHOD NOT ALLOWED', 'error', 100],
+        ['{"error":"Only POST accepted on this endpoint."}', 'error', 220],
+      ]);
+      return;
+    }
+
+    // Try to detect payload correctness
+    const hasProto = bodyStr.includes('__proto__') || lower.includes('__proto__');
+    const hasClearance = bodyStr.includes('clearance') || lower.includes('clearance');
+    const hasOmega = bodyStr.includes('OMEGA_7') || lower.includes('omega_7');
+
+    if (!hasProto && !hasClearance) {
+      printLines([
+        ['HTTP/1.1 200 OK', 'success', 100],
+        ['{"status":"success","message":"Kernel hydration sequence initiated."}', '', 220],
+        ['', 'dim', 300],
+        ['↳ Hydration accepted but nothing changed. Your payload had no effect.', 'warn', 400],
+        ['↳ The vault still denies you. What property does the vault check for? How do you inject it?', 'warn', 520],
+      ]);
+      return;
+    }
+
+    if (hasProto && hasClearance && !hasOmega) {
+      printLines([
+        ['HTTP/1.1 200 OK', 'success', 100],
+        ['{"status":"success","message":"Kernel hydration sequence initiated."}', '', 220],
+        ['', 'dim', 300],
+        ['↳ Prototype key detected in payload — but the clearance value is wrong.', 'warn', 400],
+        ['↳ What exact value does the vault check against? Read the vault endpoint hint again.', 'warn', 520],
+      ]);
+      return;
+    }
+
+    if (hasProto && hasOmega && hasClearance) {
+      try {
+        await fetch('/api/v1/hydrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"__proto__":{"clearance":"OMEGA_7"}}'
+        });
+      } catch (err) {
+        // Keep the training terminal responsive even if the local API is unavailable.
+      }
+
+      // SUCCESS — prototype poisoned
+      STATE.hydrated = true;
+      markDone('ts5');
+      showClueToast('Object.prototype poisoned — open the vault!');
+      printLines([
+        ['HTTP/1.1 200 OK', 'success', 100],
+        ['', 'dim', 160],
+        ['> Processing hydration packet...', 'dim', 260],
+        ['> Sanitizer engaged — scrubbing "__proto__" string markers...', 'warn', 420],
+        ['> Sanitizer reports: CLEAN (false negative)', 'warn', 600],
+        ['> _.merge(Object.prototype, data) ← executing...', 'error', 800],
+        ['> Object.prototype.clearance = "OMEGA_7"', 'error', 1000],
+        ['', 'dim', 1060],
+        ['{"status":"success","message":"Kernel hydration sequence initiated."}', '', 1120],
+        ['', 'dim', 1200],
+        ['[!] OBJECT.PROTOTYPE POLLUTED — ALL OBJECTS INHERIT clearance: OMEGA_7', 'error', 1320],
+        ['↳ The vault checks ({}).clearance — that empty object now inherits your value.', 'info', 1460],
+        ['↳ Now open the vault.', 'success', 1580],
+      ]);
+      return;
+    }
+
+    // Malformed JSON body
+    printLines([
+      ['HTTP/1.1 400 BAD REQUEST', 'error', 100],
+      ['{"status":"error","message":"Malformed packet."}', 'error', 220],
+    ]);
+    return;
+  }
+
+  // ─── GET /api/v1/vault/open ───
+  if (lower.includes('/api/v1/vault/open') || lower.includes('vault/open') || (lower.includes('vault') && !lower.includes('hydrate'))) {
+    echoCmd(cmd);
+
+    if (!STATE.hydrated) {
+      const quotes = [
+        '"You see, but you do not observe." — SH',
+        '"It is a capital mistake to theorize before one has data." — SH',
+        '"The world is full of obvious things which nobody ever observes." — SH',
+      ];
+      const q = quotes[Math.floor(Math.random()*quotes.length)];
+      printLines([
+        ['HTTP/1.1 403 FORBIDDEN', 'error', 100],
+        ['{"status":"error","message":"ACCESS DENIED: ' + q + '"}', 'error', 250],
+        ['', 'dim', 340],
+        ['↳ The vault checks ({}).clearance — yours reads undefined. Poison the prototype first.', 'warn', 460],
+      ]);
+      return;
+    }
+
+    // VICTORY
+    STATE.vaultOpen = true;
+    markDone('ts6');
+    let vaultFlag = 'FLAG_UNAVAILABLE';
+    try {
+      const response = await fetch('/api/v1/vault/open');
+      const payload = await response.json();
+      if (payload && payload.flag) vaultFlag = payload.flag;
+    } catch (err) {
+      vaultFlag = 'FLAG_UNAVAILABLE';
+    }
+    const flagEl = document.getElementById('flagValue');
+    if (flagEl) flagEl.textContent = vaultFlag;
+    printLines([
+      ['HTTP/1.1 200 OK', 'success', 100],
+      ['', 'dim', 160],
+      ['> Evaluating clearance...', 'dim', 280],
+      ['> ({}).clearance === "OMEGA_7"  →  checking...', 'warn', 460],
+      ['> Prototype chain lookup: Object.prototype.clearance = "OMEGA_7"  ✓', 'warn', 680],
+      ['> CLEARANCE CONFIRMED — OPENING VAULT', 'success', 900],
+      ['', 'dim', 980],
+      ['█████████████████████████████████████████████████████', 'success', 1060],
+      ['█                                                   █', 'success', 1140],
+      ['█  OMEGA-7 VAULT BREACHED                          █', 'success', 1220],
+      ['█                                                   █', 'success', 1300],
+      ['█  {"status":"success",                            █', 'success', 1380],
+      ['█   "flag":"' + vaultFlag + '"', 'success', 1460],
+      ['█                                                   █', 'success', 1540],
+      ['█████████████████████████████████████████████████████', 'success', 1620],
+    ]);
+    setTimeout(() => revealChapter5(), 2400);
+    return;
+  }
+
+  // ─── Unknown endpoint/command ───
+  echoCmd(cmd);
+
+  // Generic plausible HTTP response for unknown paths
+  if (lower.includes('/') && (lower.startsWith('get') || lower.startsWith('curl') || lower.startsWith('post'))) {
+    printLines([
+      ['HTTP/1.1 404 NOT FOUND', 'error', 100],
+      ['{"error":"Resource not found."}', 'error', 220],
+    ]);
+  } else {
+    printLines([
+      ['-bash: ' + cmd.split(' ')[0] + ': command not found', 'error', 80],
+      ['Type "help" for available commands.', 'dim', 180],
+    ]);
+  }
+}
+
+// ---- Input handler ----
+document.getElementById('termInput').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || busy) return;
+  const val = e.target.value;
+  e.target.value = '';
+  if (!val.trim()) return;
+  parseCommand(val);
+});
+
+// ---- Hint system ----
+function useHint() {
+  if (hintsLeft <= 0) {
+    document.getElementById('hintText').textContent = 'No hints remaining. You must deduce the rest yourself.';
+    document.getElementById('hintText').classList.add('visible');
+    return;
+  }
+  // Pick contextual hint based on state
+  let idx;
+  if (!STATE.notesRead) idx = 0;
+  else if (!STATE.graphqlQueried) idx = 1;
+  else idx = 2;
+
+  hintsLeft--;
+  document.getElementById('hintCount').textContent = hintsLeft + ' hint' + (hintsLeft !== 1 ? 's' : '') + ' remaining';
+  const ht = document.getElementById('hintText');
+  ht.textContent = HINTS[idx];
+  ht.classList.add('visible');
+  if (hintsLeft === 0) document.getElementById('hintBtn').textContent = 'No hints remaining';
+}
+
+function clearTerm() {
+  log.innerHTML = '<span class="term-line dim">[SYS] Session cleared.</span>';
+}
+
+// ==================== REVEAL CHAPTER 5 ====================
+function revealChapter5() {
+  const ch5 = document.getElementById('ch5');
+  ch5.classList.add('active');
+  // Add nav dot
+  const nav = document.getElementById('chapterNav');
+  const dot = document.createElement('div');
+  dot.className = 'nav-dot';
+  dot.dataset.target = 'ch5';
+  dot.title = 'Revelation';
+  nav.appendChild(dot);
+  setTimeout(() => {
+    ch5.scrollIntoView({behavior:'smooth'});
+    showClueToast('Case Closed — Vault Opened!');
+  }, 300);
+}
+
+// ==================== FLOATING PARTICLES ====================
+(function() {
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+  const particles = Array.from({length:40}, () => ({
+    x: Math.random()*window.innerWidth,
+    y: Math.random()*window.innerHeight,
+    r: 0.5 + Math.random(),
+    vx: (Math.random()-0.5)*0.3,
+    vy: (Math.random()-0.5)*0.3,
+    opacity: 0.1 + Math.random()*0.3,
+  }));
+  function animate() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(200,135,58,${p.opacity})`;
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+// ==================== SIMULATE RANDOM LOGS ====================
+const ambientLogs = [
+  ['Pinging relay nodes...', 'dim'],
+  ['Watching sector perimeter...', 'dim'],
+  ['Maintenance query executed.', 'dim'],
+  ['Archive access attempt logged.', 'warn'],
+  ['Prototype state: nominal.', 'dim'],
+  ['Omega heartbeat nominal.', 'dim'],
+];
+setInterval(() => {
+  const l = ambientLogs[Math.floor(Math.random()*ambientLogs.length)];
+  addLine('[' + new Date().toLocaleTimeString() + '] ' + l[0], l[1]);
+}, 9000);
+</script>
 </body>
 </html>
